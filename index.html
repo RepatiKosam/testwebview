@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Normal Gate Pass System</title>
+    <link rel="stylesheet" href="./normalgatepass.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Initialize rider ID from Django context, use null if not provided
+        window.initialRiderId = "{{ initialRiderId }}" || null;
+        
+        // If initialRiderId is empty string, "None", or undefined, set to null
+        if (!window.initialRiderId || window.initialRiderId === "None" || window.initialRiderId === "" || window.initialRiderId === "undefined") {
+            window.initialRiderId = null;
+            console.log("No valid initialRiderId from Django context, setting to null");
+        } else {
+            console.log("Using initialRiderId from Django context:", window.initialRiderId);
+        }
+        
+        // Set development mode flag
+        window.DEVELOPMENT_MODE = true;
+    </script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header with User Profile -->
+         <!-- Here we fetch the user profile from the database .If the user is not avaliable in the profile master but in the registration table, we need to update the proflie with guradian details -->
+        <header class="header">
+            <h1>My Day Pass</h1>
+            <div class="profile-circle ripple" data-modal-target="profileEditModal">
+                <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Profile" class="user-profile-pic">
+            </div>
+        </header>
+
+        <!-- Main Content intially display the pending requests -->
+        <main class="main-content">
+            <!-- Status Cards used for filtering the gate pass requests-->
+            <section class="status-section">
+                <div class="status-cards">
+                    <div class="status-card pending ripple">
+                        <div class="status-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="status-info">
+                            <h3>Pending</h3>
+                            <div class="status-count">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card approved ripple">
+                        <div class="status-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="status-info">
+                            <h3>Approved</h3>
+                            <div class="status-count">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card rejected ripple">
+                        <div class="status-icon">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="status-info">
+                            <h3>Rejected</h3>
+                            <div class="status-count">0</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Create Gate Pass Button, It opens the new gatepass form to submit the new gatepass request -->
+            <section class="action-section">
+                <button class="create-gate-pass-btn ripple" data-modal-target="gatePassModal">
+                    <i class="fas fa-plus"></i>
+                    Create New Gate Pass
+                </button>
+            </section>
+            
+            <!-- Submitted Requests Section, It displays the gate pass requests submitted by the user where the type is "normal"-->
+            <section class="requests-section">
+                <h2>My Requests</h2>
+                <div class="requests-container" id="requestsContainer">
+                    <!-- Requests will be added here dynamically based of the riderID, type and status -->
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <!-- Gate Pass Modal -->
+    <div class="modal" id="gatePassModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Request Gate Pass</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="gatePassForm" onsubmit="return false;">
+                <!-- Form Steps Navigation -->
+                <div class="form-stepper">
+                    <div class="step-indicator active" data-step="1">
+                        <span>1</span>
+                        <div class="step-label">Details</div>
+                    </div>
+                    <div class="step-indicator" data-step="2">
+                        <span>2</span>
+                        <div class="step-label">Leave</div>
+                    </div>
+                    <div class="step-indicator" data-step="3">
+                        <span>3</span>
+                        <div class="step-label">Preview</div>
+                    </div>
+                </div>
+
+                <!-- Step 1: Student and Guardian Information -->
+                <div class="form-step active" data-step="1">
+                    <!-- Tabs for Student and Guardian -->
+                    <div class="detail-tabs">
+                        <div class="tab-button active" data-tab="student-tab">Student Details</div>
+                        <div class="tab-button" data-tab="guardian-tab">Guardian Details</div>
+                    </div>
+
+                    <!-- Student Information Tab -->
+                    <div class="tab-content active" id="student-tab">
+                        <div class="form-section">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="studentName">Full Name</label>
+                                    <input type="text" id="studentName" name="studentName" required readonly style="border: none; background-color: transparent;">
+                                </div>
+                                <div class="form-group">
+                                    <label for="rollNo">Roll Number</label>
+                                    <input type="text" id="rollNo" name="rollNo" required readonly style="border: none; background-color: transparent;">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="year">Year</label>
+                                    <input type="text" id="year" name="year" required readonly style="border: none; background-color: transparent;">
+                                </div>
+                                <div class="form-group">
+                                    <label for="hostelCode">Hostel & Room</label>
+                                    <input type="text" id="hostelCode" name="hostelCode" required readonly style="border: none; background-color: transparent;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Guardian Details Tab -->
+                    <div class="tab-content" id="guardian-tab">
+                        <div class="form-section">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="parentName">Guardian Name</label>
+                                    <input type="text" id="parentName" name="parentName" required readonly style="border: none; background-color: transparent;">
+                                </div>
+                                <div class="form-group">
+                                    <label for="relation">Relation</label>
+                                    <!-- This needs to be populated by JS -->
+                                    <input type="text" id="relation" name="relation" required readonly style="border: none; background-color: transparent;">
+                                </div>
+                            </div>
+                            <div id="mobileNumbersContainer">
+                                <div class="form-group">
+                                    <label for="parentMobile">Mobile Number</label>
+                                    <input type="tel" id="parentMobile" name="parentMobile" placeholder="Enter mobile number" required readonly style="border: none; background-color: transparent;">
+                                </div>
+                                <!-- Additional guardian numbers were not part of this original form structure -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-buttons">
+                        <button type="button" class="prev-btn ripple" disabled>Back</button>
+                        <button type="button" class="next-btn ripple" data-next="2">Next</button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Leave Details & Additional Info -->
+                <div class="form-step" data-step="2">
+                    <div class="form-section">
+                        <h3 class="section-title">Leave Details</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="leaveTime">Leave Time</label>
+                                <input type="time" id="leaveTime" name="leaveTime" required>
+                                <div id="leaveTime-error" class="error-message"></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="returnTime">Return Time</label>
+                                <input type="time" id="returnTime" name="returnTime" required>
+                                <div id="returnTime-error" class="error-message"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-section">
+                        <h3 class="section-title">Additional Information</h3>
+                        <div class="form-group">
+                            <label for="destination">Destination</label>
+                            <input type="text" id="destination" name="destination" placeholder="Enter destination" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="purpose">Purpose of Visit</label>
+                            <textarea id="purpose" name="purpose" placeholder="Describe the purpose of your visit" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Mode of Transport</label>
+                            <!-- Using chips for transport -->
+                            <div class="chip-group" id="transportChips">
+                                <div class="chip" data-value="Auto">Auto</div>
+                                <div class="chip" data-value="Bus">Bus</div>
+                                <div class="chip" data-value="Bike">Bike</div>
+                                <div class="chip" data-value="Train">Train</div>
+                                <div class="chip" data-value="Car">Car</div>
+                                <!-- Hidden input to store selected transport value -->
+                                <input type="hidden" id="transport" name="transport" required>
+                            </div>
+                        </div>
+                        <div class="terms-group">
+                            <div class="checkbox-wrapper">
+                                <input type="checkbox" id="termsAgreement" name="termsAgreement" onclick="openModal('termsModal'); return false;" required>
+                                <label for="termsAgreement">I agree to the <a href="#" onclick="openModal('termsModal'); return false;">terms and conditions</a></label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-buttons">
+                        <button type="button" class="prev-btn ripple" data-prev="1">Back</button>
+                        <!-- The manualPreviewHandler might need adjustment -->
+                        <button type="button" class="preview-btn ripple" onclick="manualPreviewHandler()">Preview</button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Preview -->
+                <div class="form-step" data-step="3">
+                    <!-- Student Details Card -->
+                    <div class="preview-card">
+                        <div class="preview-card-header">
+                            <i class="fas fa-user-graduate"></i> Student Details
+                        </div>
+                        <div class="preview-details">
+                            <span class="preview-label">Name:</span>
+                            <span class="preview-value" id="preview-studentName"></span>
+                            <span class="preview-label">Roll No:</span>
+                            <span class="preview-value" id="preview-rollNo"></span>
+                            <span class="preview-label">Year & Hostel:</span>
+                            <span class="preview-value" id="preview-yearHostel"></span>
+                        </div>
+                    </div>
+                    <!-- Guardian Details Card -->
+                    <div class="preview-card">
+                        <div class="preview-card-header">
+                            <i class="fas fa-user-shield"></i> Guardian Details
+                        </div>
+                        <div class="preview-details">
+                            <span class="preview-label">Name:</span>
+                            <span class="preview-value" id="preview-parentName"></span>
+                            <span class="preview-label">Relation:</span>
+                            <span class="preview-value" id="preview-relation"></span>
+                            <span class="preview-label">Mobile:</span>
+                            <span class="preview-value" id="preview-parentMobile"></span>
+                        </div>
+                    </div>
+                    <!-- Leave Details Card -->
+                    <div class="preview-card">
+                        <div class="preview-card-header">
+                            <i class="fas fa-clock"></i> Leave Details
+                        </div>
+                        <div class="preview-details">
+                            <span class="preview-label">Leave Time:</span>
+                            <span class="preview-value" id="previewLeaveDateTime"></span>
+                            <span class="preview-label">Return Time:</span>
+                            <span class="preview-value" id="previewReturnDateTime"></span>
+                            <span class="preview-label">Destination:</span>
+                            <span class="preview-value" id="previewDestination"></span>
+                            <span class="preview-label">Purpose:</span>
+                            <span class="preview-value" id="previewPurpose"></span>
+                            <span class="preview-label">Transport:</span>
+                            <span class="preview-value" id="previewTransport"></span>
+                        </div>
+                    </div>
+                    <!-- Action Buttons -->
+                    <div class="button-group">
+                         <!-- Changed back to navigateBack() -->
+                        <button type="button" class="prev-btn ripple" onclick="navigateBack()">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <button type="button" class="submit-btn ripple" onclick="submitGatePass()">
+                            <i class="fas fa-check"></i> Submit Request
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Profile Edit Modal -->
+     <!-- if the riderID is not available in the registration table but not in the profile master, we need to update the profile master with the guardian details -->
+      <!-- if the riderID is available in the profile master, And he want to change any details update the profile master with the guardian details -->
+    <div class="modal" id="profileEditModal">
+        <div class="modal-content">
+            <div class="profile-backdrop">
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+                <h2 class="profile-title">Profile</h2>
+                <div class="backdrop-wave"></div>
+                <div class="profile-edit-pic">
+                    <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Profile" class="edit-profile-pic">
+                    <!-- <div class="edit-pic-overlay ripple">
+                        <i class="fas fa-camera"></i>
+                        <input type="file" id="profilePicUpload" accept="image/*" hidden>
+                    </div> -->
+                </div>
+            </div>
+            
+            <form id="profileEditForm" onsubmit="return false;">
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="editName">Full Name</label>
+                        <input type="text" id="editName" name="editName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editMemberId">Member ID</label>
+                        <input type="text" id="editMemberId" name="editMemberId" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editPhone">Phone Number</label>
+                        <input type="tel" id="editPhone" name="editPhone" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editEmail">Email ID</label>
+                        <input type="email" id="editEmail" name="editEmail" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editRollNo">Roll Number</label>
+                        <input type="text" id="editRollNo" name="editRollNo" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Year</label>
+                        <div class="chip-group" id="yearChips">
+                            <div class="chip" data-value="UG1">UG1</div>
+                            <div class="chip" data-value="UG2">UG2</div>
+                            <div class="chip" data-value="UG3">UG3</div>
+                            <div class="chip" data-value="UG4">UG4</div>
+                            <input type="hidden" id="editYear" name="editYear" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Hostel</label>
+                        <div class="chip-group" id="hostelChips">
+                            <div class="chip" data-value="BH1">BH1</div>
+                            <div class="chip" data-value="BH2">BH2</div>
+                            <div class="chip" data-value="BH3">BH3</div>
+                            <div class="chip" data-value="BH4">BH4</div>
+                            <input type="hidden" id="editHostel" name="editHostel" required>
+                        </div>
+                    </div>
+                    
+                        <div class="section-title">Guardian Information</div>
+                        
+                        <div class="form-group">
+                            <label for="editGuardianName">Guardian Name</label>
+                            <input type="text" id="editGuardianName" name="editGuardianName" placeholder="Enter guardian's name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Relation</label>
+                            <div class="chip-group" id="relationChips">
+                                <div class="chip" data-value="Father">Father</div>
+                                <div class="chip" data-value="Mother">Mother</div>
+                                <div class="chip" data-value="Sibling">Sibling</div>
+                                <div class="chip" data-value="Guardian">Guardian</div>
+                                <div class="chip" data-value="Others">Others</div>
+                                <input type="hidden" id="editRelation" name="editRelation" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="editGuardianPhone">Phone Number</label>
+                            <input type="tel" id="editGuardianPhone" name="editGuardianPhone" placeholder="Enter 10-digit phone number" maxlength="10" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="editGuardianEmail">Email</label>
+                            <input type="email" id="editGuardianEmail" name="editGuardianEmail" placeholder="Enter guardian's email" required>
+                        </div>
+                        
+                        <!-- Container for dynamic additional contacts -->
+                        <div id="additionalGuardiansContainer">
+                            <!-- Additional contact fields will be added here by JavaScript -->
+                        </div>
+
+                        <button type="button" id="addGuardianBtn" class="secondary-btn">
+                            <i class="fas fa-plus"></i> Add Another Number
+                        </button>
+                
+                </div>
+                
+                <!-- Form actions -->
+                <div class="form-actions">
+                    <button type="button" class="cancel-btn" onclick="closeModal('profileEditModal')">Cancel</button>
+                    <button type="button" class="submit-btn" onclick="updateProfile()">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Gate Pass Status Detail Modal, It displays the gate pass status details -->
+    <div class="modal" id="statusDetailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Gate Pass Status</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- note this is hardcoded, but these details will be fetched from the database -->
+            <div class="status-detail-container">
+                <div class="request-info">
+                    <h3 id="detailDestination">Home - Family Function</h3>
+                    <div class="request-dates">
+                        <div class="date-group">
+                            <div class="date-label">Leaving</div>
+                            <div class="date-value" id="detailLeaveDate">Oct 15, 2023</div>
+                            <div class="time-value" id="detailLeaveTime">09:30 AM</div>
+                        </div>
+                        <div class="date-divider"></div>
+                        <div class="date-group">
+                            <div class="date-label">Returning</div>
+                            <div class="date-value" id="detailReturnDate">Oct 18, 2023</div>
+                            <div class="time-value" id="detailReturnTime">06:30 PM</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Currently thses are all hardcoded, but these details will be fetched from the database -->
+                <!--Each step has to follow the order of approval, if the request is rejected in any step then the further steps will not be approved and mark the icons, titles and progress bar should become red-->
+                <div class="approval-timeline">
+                    <div class="timeline-container">
+                        <div class="timeline-progress">
+                            <div class="progress-bar" id="approvalProgress"></div>
+                        </div>
+                        <div class="timeline-steps">
+                            <div class="timeline-step" data-step="1">
+                                <div class="step-icon">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <div class="step-label">Submitted</div>
+                            </div>
+                            <div class="timeline-step" data-step="2">
+                                <div class="step-icon">
+                                    <i class="fas fa-user-check"></i>
+                                </div>
+                                <!-- When request Submitted by the student, Notify the parent with the request details in email -->
+                                <div class="step-label">Parental</div>
+                            </div>
+                            <div class="timeline-step" data-step="3">
+                                <div class="step-icon">
+                                    <i class="fas fa-user-shield"></i>
+                                </div>
+                                <!-- if the gate pass is approved by the either Warden or Caretaker or Asst manager , then the gate pass will be approved by the that member instead of Admin -->
+                                <div class="step-label">Admin</div>
+                            </div>
+                            <div class="timeline-step" data-step="4">
+                                <div class="step-icon">
+                                    <i class="fas fa-shield-alt"></i>
+                                </div>
+                                <!-- Secuirty Check is the last step of the gate pass approval process -->
+                                <div class="step-label">Security</div>
+                            </div>
+                            <div class="timeline-step" data-step="5">
+                                <div class="step-icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <!-- This step shows currently out if the request is in between the leave time and return time compare with system date & time-->
+                                <div class="step-label">Currently Out</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="status-details">
+                    <div class="status-detail-item">
+                        <div class="detail-label">Current Status:</div>
+                        <div class="detail-value" id="currentStatus">Waiting for Admin approval</div>
+                    </div>
+                    <!-- Add a hidden section for the rejection reason -->
+                    <div class="status-detail-item" id="rejectionReasonSection" style="display: none;">
+                        <div class="detail-label">Reason:</div>
+                        <div class="detail-value" id="rejectionReasonText"></div>
+                    </div>
+                    <div class="status-detail-item" style="display: none;">
+                        <div class="detail-label">Request ID:</div>
+                        <div class="detail-value" id="requestId">GP-2023-10-001</div>
+                    </div>
+                    <div class="status-detail-item">
+                        <div class="detail-label">Submitted On:</div>
+                        <div class="detail-value" id="submittedDate">Oct 12, 2023 - 10:30 AM</div>
+                    </div>
+                </div>
+                
+                <!-- Gate Pass QR Code Section -->
+                <div class="qr-code-section">
+                    <h3>Gate Pass</h3>
+                    <div class="qr-container">
+                        <!-- Disabled QR Code (shown when not approved) -->
+                        <!-- if the request is not approved by the either Warden or Caretaker or Asst manager , then the QR code will be disabled -->
+                         <!-- if the request is approved by the either Warden or Caretaker or Asst manager , then the QR code will be enabled -->
+                        <div class="qr-code disabled" id="qrCodeDisabled">
+                            <i class="fas fa-qrcode"></i>
+                            <div class="qr-overlay">
+                                <i class="fas fa-lock"></i>
+                                <p>Pending Approval</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Active QR Code (shown when approved) -->
+                        <div class="qr-code active" id="qrCodeActive">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=GATEPASS-ID-12345" alt="Gate Pass QR Code">
+                        </div>
+                    </div>
+                    <div class="qr-instructions">
+                        <p id="qrInstructions">QR code will be available after final approval.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Terms Modal -->
+    <div class="modal" id="termsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Terms & Conditions</h2>
+                <button class="modal-close" onclick="closeModal('termsModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="terms-content">
+                <div class="terms-section">
+                    <h3>Important Guidelines</h3>
+                    <ul class="terms-list">
+                        <li>
+                            <i class="fas fa-clock"></i>
+                            <div>
+                                <strong>Return Time Compliance</strong>
+                                <p>Students must return before the specified return time. Late returns will result in disciplinary action.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <div>
+                                <strong>Penalties for Late Return</strong>
+                                <p>Failure to return on time may result in:</p>
+                                <ul>
+                                    <li>Written warning</li>
+                                    <li>Parent/Guardian notification</li>
+                                    <li>Restriction on future gate pass requests</li>
+                                </ul>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-phone"></i>
+                            <div>
+                                <strong>Communication Requirement</strong>
+                                <p>Must inform hostel authorities in case of any emergency or delay.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-shield-alt"></i>
+                            <div>
+                                <strong>Safety Guidelines</strong>
+                                <p>Follow all safety protocols and maintain proper conduct while outside campus.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="terms-actions">
+                    <button class="accept-terms-btn" onclick="acceptTerms()">I Understand & Accept</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Build the app -->
+    <script src="./normalgatepass.js"></script>
+</body>
+</html> 
